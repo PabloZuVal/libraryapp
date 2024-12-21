@@ -1,33 +1,29 @@
+// presentation/screens/booklist/BookListScreen.kt
 package com.example.libraryapp.presentation.screens.booklist
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.*
-//import androidx.compose.material.*
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.libraryapp.presentation.model.BookListUiState
-import com.example.libraryapp.presentation.model.BookUI
-import com.example.libraryapp.presentation.screens.booklist.BookListViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.libraryapp.domain.model.ReadStatus
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.example.libraryapp.presentation.model.BookListUiState
+import com.example.libraryapp.presentation.model.BookUI
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookListScreen(
-    viewModel: BookListViewModel = hiltViewModel(),
-    navigateToDetail: (String) -> Unit
+    onNavigateToDetail: (String) -> Unit,
+    onNavigateToAdd: () -> Unit,
+    viewModel: BookListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -37,8 +33,11 @@ fun BookListScreen(
             TopAppBar(
                 title = { Text("Mi Biblioteca") },
                 actions = {
-                    IconButton(onClick = { /* Implementar añadir libro */ }) {
-                        Icon(Icons.Filled.Add, contentDescription = "Añadir libro")
+                    IconButton(onClick = { onNavigateToAdd() }) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Agregar libro"
+                        )
                     }
                 }
             )
@@ -49,131 +48,153 @@ fun BookListScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // Search Bar
             SearchBar(
-                query = searchQuery,
-                onQueryChange = viewModel::updateSearchQuery,
+                searchQuery = searchQuery,
+                onSearchQueryChange = viewModel::updateSearchQuery,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
             )
 
             when (uiState) {
-                is BookListUiState.Loading -> LoadingIndicator()
-                is BookListUiState.Error -> ErrorMessage(
-                    message = (uiState as BookListUiState.Error).message
-                )
-                is BookListUiState.Success -> BookList(
-                    books = (uiState as BookListUiState.Success).books,
-                    onBookClick = navigateToDetail,
-                    onStatusUpdate = viewModel::updateReadStatus
-                )
+                is BookListUiState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+                is BookListUiState.Success -> {
+                    BookList(
+                        books = (uiState as BookListUiState.Success).books,
+                        onBookClick = onNavigateToDetail,
+                        onStatusChange = viewModel::updateReadStatus
+                    )
+                }
+                is BookListUiState.Error -> {
+                    ErrorMessage(
+                        message = (uiState as BookListUiState.Error).message,
+                        onRetry = viewModel::loadBooks
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun SearchBar(
-    query: String,
-    onQueryChange: (String) -> Unit,
+fun SearchBar(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
+        value = searchQuery,
+        onValueChange = onSearchQueryChange,
         modifier = modifier,
         placeholder = { Text("Buscar libros...") },
-        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) }
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "Buscar"
+            )
+        }
     )
 }
 
 @Composable
-private fun BookList(
+fun BookList(
     books: List<BookUI>,
     onBookClick: (String) -> Unit,
-    onStatusUpdate: (String, ReadStatus) -> Unit
+    onStatusChange: (String, ReadStatus) -> Unit
 ) {
-    LazyColumn {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         items(books) { book ->
             BookItem(
                 book = book,
                 onClick = { onBookClick(book.id) },
-                onStatusUpdate = { status -> onStatusUpdate(book.id, status) }
+                onStatusChange = { status -> onStatusChange(book.id, status) }
             )
         }
     }
 }
 
 @Composable
-private fun BookItem(
+fun BookItem(
     book: BookUI,
     onClick: () -> Unit,
-    onStatusUpdate: (ReadStatus) -> Unit
+    onStatusChange: (ReadStatus) -> Unit
 ) {
-    Card(
+    ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp)
-            .clickable(onClick = onClick),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
+            .clickable(onClick = onClick)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .padding(16.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+                .fillMaxWidth()
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = book.title,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    text = book.author,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = book.title,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = book.author,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+
+                StatusChip(
+                    currentStatus = book.readStatus,
+                    onStatusChange = onStatusChange
                 )
             }
-            ReadStatusButton(
-                currentStatus = book.readStatus,
-                onStatusUpdate = onStatusUpdate
-            )
         }
     }
 }
 
 @Composable
-private fun ReadStatusButton(
+fun StatusChip(
     currentStatus: ReadStatus,
-    onStatusUpdate: (ReadStatus) -> Unit
+    onStatusChange: (ReadStatus) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
     Box {
-        IconButton(onClick = { expanded = true }) {
-            Icon(
-                imageVector = Icons.Filled.MoreVert,
-                contentDescription = "Cambiar estado"
+        AssistChip(
+            onClick = { expanded = true },
+            label = { Text(currentStatus.toString()) },
+            colors = AssistChipDefaults.assistChipColors(
+                containerColor = when (currentStatus) {
+                    ReadStatus.TO_READ -> MaterialTheme.colorScheme.secondary
+                    ReadStatus.READING -> MaterialTheme.colorScheme.primary
+                    ReadStatus.FINISHED -> MaterialTheme.colorScheme.tertiary
+                }
             )
-        }
+        )
+
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-//            ReadStatus.values().forEach { status ->
-//                DropdownMenuItem(
-//                    content = { Text(status.name) },
-//                    onClick = {
-//                        onStatusUpdate(status)
-//                        expanded = false
-//                    }
-//                )
-//            }
             ReadStatus.values().forEach { status ->
                 DropdownMenuItem(
-                    text = { Text(status.name) },
+                    text = { Text(status.toString()) },
                     onClick = {
-                        onStatusUpdate(status)
+                        onStatusChange(status)
                         expanded = false
                     }
                 )
@@ -183,24 +204,21 @@ private fun ReadStatusButton(
 }
 
 @Composable
-private fun LoadingIndicator() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+fun ErrorMessage(
+    message: String,
+    onRetry: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        CircularProgressIndicator()
-    }
-}
-
-@Composable
-private fun ErrorMessage(message: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = message,
-            color = MaterialTheme.colorScheme.error
-        )
+        Text(text = message)
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(onClick = onRetry) {
+            Text("Reintentar")
+        }
     }
 }
