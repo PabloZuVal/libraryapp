@@ -59,7 +59,6 @@ android {
 dependencies {
     // Core Android
     implementation("androidx.core:core-ktx:1.12.0")  // En lugar de 1.15.0
-//    implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
@@ -71,12 +70,7 @@ dependencies {
     // Room
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
-    kapt("androidx.room:room-compiler:2.6.1")  // Descomentado y necesario
-
-    // Hilt
-    implementation("com.google.dagger:hilt-android:2.50")
-    kapt("com.google.dagger:hilt-android-compiler:2.50")  // Cambiado de hilt-compiler
-    implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
+    kapt("androidx.room:room-compiler:2.6.1")
 
     // Compose
     implementation("androidx.compose.material:material-icons-extended:1.5.4")
